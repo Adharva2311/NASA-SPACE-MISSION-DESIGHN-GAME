@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NASA Space Quest: Moon Rescue Mission - Final Showdown</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020208;color:#fff;font-family:'Segoe UI',Tahoma,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;user-select:none}
+#g{position:relative;width:900px;height:650px;border:3px solid #00f0ff;box-shadow:0 0 40px #00f0ff66;border-radius:16px;overflow:hidden;background:#000}
+canvas{display:block}
+.ov{position:absolute;inset:0;background:rgba(4,7,22,.95);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:25px;z-index:20}
+.hid{display:none!important}
+h1{font-size:2.2rem;text-shadow:0 0 15px #00f0ff;margin-bottom:8px;letter-spacing:2px}
+p{color:#a0c0ff;max-width:640px;margin-bottom:12px;line-height:1.4}
+.badge{border:1px solid #00f0ff;color:#00f0ff;font-size:.8rem;letter-spacing:3px;padding:6px 18px;border-radius:20px;margin-bottom:10px}
+.row{display:flex;gap:12px;margin-bottom:12px}
+.b{padding:8px 20px;font-weight:700;color:#a0c0ff;background:#ffffff0d;border:2px solid #00f0ff55;border-radius:20px;cursor:pointer;text-transform:uppercase}
+.b:hover,.b.on{color:#020208;background:#00f0ff;box-shadow:0 0 18px #00f0ffcc}
+.go{padding:12px 34px;font-size:1.1rem;font-weight:800;color:#020208;background:linear-gradient(135deg,#00f0ff,#08f);border:none;border-radius:30px;cursor:pointer;box-shadow:0 0 22px #00f0ffcc;text-transform:uppercase;margin-top:8px}
+.go:hover{transform:scale(1.06)}
+.ctl{border:1px solid #00f0ff55;border-radius:12px;padding:10px 18px;margin-bottom:12px;font-size:.85rem;color:#ffe600;display:flex;gap:22px}
+.qo{width:100%;max-width:550px;padding:12px 18px;margin:6px 0;background:#10162f;border:1px solid #00f0ff;color:#fff;border-radius:8px;cursor:pointer;text-align:left;font-size:.95rem}
+.qo:hover{background:#1c2b5d;transform:translateX(6px)}
+#hud{position:absolute;top:10px;left:15px;right:15px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;color:#00f0ff;pointer-events:none;z-index:10;background:#00020ca6;padding:8px 16px;border-radius:10px;border:1px solid #00f0ff55}
+.bar{width:180px;height:14px;background:#111;border:1px solid #00f0ff;border-radius:8px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px}
+#pr{height:100%;width:0;background:linear-gradient(90deg,#00f0ff,#ff0055)}
+#tip{position:absolute;display:none;padding:5px 14px;background:#00f0fff2;color:#000;font-weight:800;border-radius:4px;pointer-events:none;z-index:30;transform:translate(-50%,-130%);text-transform:uppercase}
+.card{background:#0b112c;border:2px solid #00f0ff;border-radius:14px;max-width:620px;width:100%;padding:24px 30px;text-align:left}
+.toast{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);font-size:1.7rem;font-weight:900;padding:12px 26px;border-radius:10px;z-index:35;pointer-events:none;animation:pop 1.6s forwards}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.8)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+
+/* Budget & Arsenal UI */
+.budget-box{font-size:1.3rem;font-weight:900;color:#00ff66;margin-bottom:12px;text-shadow:0 0 10px #00ff6688}
+.arsenal{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:680px;width:100%;margin-bottom:12px}
+.w-card{background:#10162f;border:1px solid #00f0ff55;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.w-card.bought{border-color:#00ff66;background:#082218}
+.w-info h4{color:#ffe600;font-size:.95rem}
+.w-info p{font-size:.78rem;color:#88a0d0;margin:0}
+.buy-btn{padding:6px 14px;font-size:.8rem;font-weight:bold;background:#00f0ff;color:#000;border:none;border-radius:6px;cursor:pointer}
+.buy-btn:disabled{background:#444;color:#888;cursor:not-allowed}
+</style></head><body>
+<div id="g">
+<div id="tip"></div>
+<div id="hud" class="hid"><div id="sc">Score: 0</div><div>Mode: <span id="md" style="color:#ff0055"></span></div><div>Diff: <span id="df" style="color:#ffe600"></span></div><div>Moon <div class="bar"><div id="pr"></div></div></div></div>
+<canvas id="c" width="900" height="650"></canvas>
+
+<div id="start" class="ov">
+<div class="badge">🚀 NASA SPACE ADVENTURE</div>
+<h1>DESTINATION: MOON RESCUE</h1>
+<p>Pilot your shuttle, purchase weapons with your NASA budget, navigate deep space, and prepare for the ultimate Mothership duel!</p>
+
+<div class="budget-box">REMAINING BUDGET: $<span id="b-val">100</span>M</div>
+<div class="arsenal">
+  <div class="w-card" id="wc-laser">
+    <div class="w-info"><h4>Dual Laser Array ($25M)</h4><p>High speed rapid energy bolts</p></div>
+    <button class="buy-btn" onclick="buyWeapon('laser',25)">EQUIP</button>
+  </div>
+  <div class="w-card" id="wc-plasma">
+    <div class="w-info"><h4>Plasma Cannon ($35M)</h4><p>Heavy damage output</p></div>
+    <button class="buy-btn" onclick="buyWeapon('plasma',35)">EQUIP</button>
+  </div>
+  <div class="w-card" id="wc-shield">
+    <div class="w-info"><h4>Shield Matrix ($20M)</h4><p>Start mission with Energy Shield</p></div>
+    <button class="buy-btn" onclick="buyWeapon('shield',20)">EQUIP</button>
+  </div>
+  <div class="w-card" id="wc-nuke">
+    <div class="w-info"><h4>Nova Warhead ($20M)</h4><p>Starts mission with 2 Nova Bombs</p></div>
+    <button class="buy-btn" onclick="buyWeapon('nuke',20)">EQUIP</button>
+  </div>
+</div>
+
+<div class="row"><button class="b mode on" data-m="1">1 Player</button><button class="b mode" data-m="2">2 Players Co-Op</button></div>
+<div class="ctl"><div>🚀 <b>P1 (Cyan):</b> WASD move | Space shoot</div><div id="p2c" style="opacity:.5">🚀 <b>P2 (Orange):</b> Arrows | Enter shoot</div></div>
+<div class="row"><button class="b dif" data-d="easy">Easy</button><button class="b dif on" data-d="medium">Medium</button><button class="b dif" data-d="hard">Hard</button></div>
+<button id="go" class="go">Launch Mission 🚀</button>
+</div>
+
+<div id="quiz" class="ov hid"><div style="font-size:2rem">🪐⚡</div><h1 id="qt" style="color:#ffe600;font-size:1.6rem"></h1><p id="qq" style="color:#e2e8f0;font-size:1.05rem"></p><div id="qo" style="width:100%;display:flex;flex-direction:column;align-items:center"></div></div>
+
+<div id="fm" class="ov hid"><div class="card"><div style="display:flex;justify-content:space-between;border-bottom:1px solid #00f0ff;padding-bottom:10px;margin-bottom:12px"><h2 id="ft" style="color:#00f0ff;font-size:1.8rem"></h2><button id="fc" class="b" style="background:#ff0055;color:#fff">X Close</button></div><ol id="fl" style="line-height:1.7;padding-left:20px;color:#d1d8e0"></ol></div></div>
+
+<div id="win" class="ov hid" style="background:rgba(4,7,22,.5)"><h1 style="color:#00ff66;text-shadow:0 0 15px #00ff66">MOTHERSHIP DESTROYED!</h1><p>You defeated the Mothership in a 1v1 duel and saved the Moon team! Final score: <b id="fs"></b></p><button class="go again">Play Again 🚀</button></div>
+<div id="over" class="ov hid"><h1 style="color:#ff0055;text-shadow:0 0 15px #ff0055">MISSION FAILED</h1><p id="om"></p><button class="go again">Try Again 🚀</button></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id),cv=$('c'),x=cv.getContext('2d'),W=900,H=650;
+const D={easy:{goal:1200,smin:1.5,smax:2.5,fire:.005,bs:4,spawn:.015,max:3,cd:180,bhp:25,bf:80},
+ medium:{goal:1600,smin:2,smax:4,fire:.01,bs:5.5,spawn:.025,max:5,cd:220,bhp:40,bf:60},
+ hard:{goal:2200,smin:3,smax:5.5,fire:.02,bs:7,spawn:.04,max:7,cd:250,bhp:60,bf:40}};
+const KS=[{u:'KeyW',d:'KeyS',l:'KeyA',r:'KeyD',f:'Space'},{u:'ArrowUp',d:'ArrowDown',l:'ArrowLeft',r:'ArrowRight',f:'Enter'}];
+const P=[{col:'#00f0ff',k:KS[0]},{col:'#ff7700',k:KS[1]}];
+const T={S:{c:'#00f0ff',n:'SHIELD ON!'},R:{c:'#ffe600',n:'RAPID FIRE!'},B:{c:'#ff0055',n:'NOVA BOMB!'}};
+const PL=[
+['Mercury',15,'#a5a5a5',150,120,.35,["Smallest planet in solar system.","Closest planet to Sun."]],
+['Venus',22,'#e3bb76',420,520,.3,["Hottest planet, 475°C.","Spins backwards."]],
+['Earth',25,'#2b82c5',720,160,.26,["Home planet.","71% surface covered by ocean."]],
+['Mars',19,'#c84b31',1020,480,.22,["Red Planet.","Olympus Mons volcano."]],
+['Jupiter',44,'#d39e68',1350,220,.18,["Largest planet.","Great Red Spot storm."]],
+['Saturn',36,'#e4c280',1680,440,.15,["Famous ring system.","62 moons."]],
+['Uranus',28,'#7de3e9',2020,150,.12,["Tilted on its side.","Cyan atmospheric methane."]],
+['Neptune',27,'#3f54d1',2350,490,.1,["Most distant planet.","2000 km/h supersonic winds."]]
+].map(a=>({n:a[0],r:a[1],c:a[2],x:a[3],y:a[4],s:a[5],f:a[6],ring:a[7],t:0}));
+const QE=[{q:"Which planet is known as the Red Planet?",o:["Venus","Mars","Jupiter","Saturn"],a:1},{q:"What is at the center of our solar system?",o:["The Moon","Earth","The Sun","Jupiter"],a:2}];
+const QH=[{q:"Which element's fusion ends energy generation in a star?",o:["Silicon","Iron","Carbon","Uranium"],a:1}];
+const QC=[{q:"Which celestial body is closest to Earth?",o:["The Sun","Mars","The Moon","Venus"],a:2}];
+const stars=Array.from({length:110},()=>({x:Math.random()*W,y:Math.random()*H,z:Math.random()*2+1,s:Math.random()*2+.5}));
+
+let budget=100;
+let loadout={laser:false,plasma:false,shield:false,nuke:false};
+
+function buyWeapon(id,cost){
+  if(loadout[id]){
+    budget+=cost;loadout[id]=false;
+  }else if(budget>=cost){
+    budget-=cost;loadout[id]=true;
+  }
+  $('b-val').textContent=budget;
+  updateLoadoutUI();
+}
+function updateLoadoutUI(){
+  for(let k in loadout){
+    const card=$('wc-'+k);
+    const btn=card.querySelector('button');
+    if(loadout[k]){
+      card.classList.add('bought');btn.textContent='EQUIPPED';
+    }else{
+      card.classList.remove('bought');btn.textContent='EQUIP';
+    }
+  }
+}
+
+const K={};let state='START',np=1,diff='medium',score=0,dist=0,AC,muted=false,shake=0,combo=0,comboT=0,rapid=0,boss=null,bossDone=false,moonOn=false,moonY=700,mt=0;
+let bul,ab,al,orbs,pt,items,bb,conf;
+
+addEventListener('keydown',e=>{if(e.code.startsWith('Arrow')||e.code==='Space'||e.code==='Enter')e.preventDefault();K[e.code]=1;if(e.code==='KeyM')muted=!muted});
+addEventListener('keyup',e=>K[e.code]=0);
+
+function snd(f,d=.1,t='square',v=.05){if(muted)return;try{AC=AC||new AudioContext();const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.setValueAtTime(f,AC.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(30,f/2),AC.currentTime+d);g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function toast(m,ok){const t=document.createElement('div');t.className='toast';t.textContent=m;t.style.background=ok?'#00ff66f2':'#ff0055f2';t.style.color=ok?'#000':'#fff';$('g').appendChild(t);setTimeout(()=>t.remove(),1600)}
+function boom(px,py,c='#ffb347',n=22){for(let i=0;i<n;i++){const a=Math.random()*6.28,s=1+Math.random()*5;pt.push({x:px,y:py,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:1,d:.025,c,r:2+Math.random()*3})}}
+const pr=p=>({x:p.x,y:p.y,w:56,h:28}),ov=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
+function reset(){
+  score=0;dist=0;
+  P.forEach((p,i)=>Object.assign(p,{x:80,y:i?360:260,on:i<np,sh:loadout.shield,inv:0,ls:0}));
+  bul=[];ab=[];al=[];orbs=[];pt=[];items=[];bb=[];conf=[];boss=null;bossDone=false;combo=comboT=rapid=shake=0;moonOn=false;moonY=700;mt=0;
+  if(loadout.nuke) items.push({x:200,y:200,k:'B',t:0},{x:200,y:300,k:'B',t:0});
+}
+function menu(){reset();state='START';['quiz','fm','win','over','hud'].forEach(i=>$(i).classList.add('hid'));$('start').classList.remove('hid')}
+function begin(){$('start').classList.add('hid');$('hud').classList.remove('hid');$('md').textContent=np==2?'2P CO-OP':'1P SOLO';$('df').textContent=diff.toUpperCase();reset();state='PLAY'}
+function over(m){state='OVER';$('hud').classList.add('hid');$('om').textContent=m;$('over').classList.remove('hid')}
+function win(){state='WIN';$('fs').textContent=score;$('win').classList.remove('hid');
+ for(let i=0;i<120;i++)conf.push({x:Math.random()*W,y:Math.random()*H-650,vy:2.5+Math.random()*3.5,vx:Math.random()*2-1,c:['#00f0ff','#ff0055','#ffe600','#00ff66','#fff','#a800ff'][i%6],s:5+Math.random()*4})}
+function quiz(title,q,cb){state='QUIZ';$('qt').textContent=title;$('qq').textContent=q.q;const o=$('qo');o.innerHTML='';
+ q.o.forEach((t,i)=>{const b=document.createElement('button');b.className='qo';b.textContent=t;b.onclick=()=>{$('quiz').classList.add('hid');cb(i===q.a)};o.appendChild(b)});$('quiz').classList.remove('hid')}
+
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mode').forEach(e=>e.classList.remove('on'));b.classList.add('on');np=+b.dataset.m;$('p2c').style.opacity=np==2?1:.5});
+document.querySelectorAll('.dif').forEach(b=>b.onclick=()=>{document.querySelectorAll('.dif').forEach(e=>e.classList.remove('on'));b.classList.add('on');diff=b.dataset.d});
+$('go').onclick=begin;document.querySelectorAll('.again').forEach(b=>b.onclick=menu);$('fc').onclick=()=>{$('fm').classList.add('hid')};
+const hover=(e,pad)=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;return{mx,my,p:PL.find(p=>Math.hypot(p.x-mx,p.y-my)<p.r+pad)}};
+cv.onmousemove=e=>{const h=hover(e,6);$('tip').style.display=h.p?'block':'none';if(h.p){$('tip').style.left=h.mx+'px';$('tip').style.top=h.my+'px';$('tip').textContent=h.p.n}};
+cv.oncontextmenu=e=>{e.preventDefault();const h=hover(e,8);if(h.p){$('ft').textContent=h.p.n.toUpperCase();$('fl').innerHTML=h.p.f.map(t=>'<li>'+t+'</li>').join('');$('fm').classList.remove('hid')}};
+
+function hurt(p){if(!p.on||p.inv>0)return;
+ if(p.sh){p.sh=false;p.inv=120;shake=12;boom(p.x+28,p.y+14,'#00f0ff',30);snd(200,.3,'sawtooth');return}
+ p.on=false;boom(p.x+28,p.y+14,'#ff7700',40);shake=18;snd(90,.5,'sawtooth',.08);
+ if(!P.some(q=>q.on))over('Your shuttle was destroyed!')}
+
+function kill(i){const a=al[i];al.splice(i,1);combo++;comboT=150;score+=100+(Math.min(combo,10)-1)*25;boom(a.x+26,a.y+16);shake=Math.max(shake,4);snd(150,.15,'sawtooth')}
+
+function update(now){
+ const c=D[diff];dist+=.8;$('sc').textContent='Score: '+score;$('pr').style.width=Math.min(100,dist/c.goal*100)+'%';
+ 
+ // TRIGGER FINAL 1V1 MOTHERSHIP BATTLE
+ if(dist>=c.goal && !boss && !bossDone){
+    al=[]; // CLEAR SMALL ALIENS
+    ab=[];
+    boss={x:1000,y:250,t:0,fl:0,hp:c.bhp*1.5,m:c.bhp*1.5};
+    toast('⚠ FINAL SHOWDOWN: MOTHERSHIP ONLY!',false);
+ }
+
+ P.forEach(p=>{if(!p.on)return;const k=p.k;
+  if(K[k.u]&&p.y>0)p.y-=5;if(K[k.d]&&p.y<H-34)p.y+=5;if(K[k.l]&&p.x>0)p.x-=5;if(K[k.r]&&p.x<W/2)p.x+=5;
+  
+  let cd = loadout.laser ? c.cd * 0.5 : c.cd;
+  if(K[k.f]&&now-p.ls>(rapid>0?60:cd)){
+    let dmg = loadout.plasma ? 2.5 : 1;
+    bul.push({x:p.x+56,y:p.y+14,c:loadout.plasma?'#00ffaa':p.col, dmg:dmg});
+    p.ls=now;snd(880,.06,'square',.03);
+  }
+  if(p.inv>0)p.inv--});
+
+ if(--comboT<=0)combo=0;if(rapid>0)rapid--;
+
+ // Bullets
+ for(let i=bul.length-1;i>=0;i--){const b=bul[i];b.x+=11;let gone=b.x>W;
+  for(let j=al.length-1;j>=0&&!gone;j--)if(ov({x:b.x,y:b.y-2,w:8,h:4},{x:al[j].x,y:al[j].y,w:52,h:32})){kill(j);gone=true}
+  if(boss&&!gone&&ov({x:b.x,y:b.y-2,w:8,h:4},{x:boss.x,y:boss.y+12,w:156,h:66})){boss.hp-=b.dmg;boss.fl=4;score+=25;snd(320,.05);gone=true}
+  if(gone)bul.splice(i,1)}
+
+ // Small Aliens (ONLY SPAWN BEFORE REACHING THE MOON BOSS)
+ if(!boss && Math.random()<c.spawn&&al.length<c.max)al.push({x:W,y:Math.random()*(H-40),s:c.smin+Math.random()*(c.smax-c.smin),f:Math.random()*100});
+ for(let i=al.length-1;i>=0;i--){const a=al[i];a.x-=a.s;a.f+=.1;
+  if(Math.random()<c.fire)ab.push({x:a.x,y:a.y+16});
+  P.forEach(p=>{if(p.on&&ov(pr(p),{x:a.x,y:a.y,w:52,h:32}))hurt(p)});
+  if(a.x<-60)al.splice(i,1)}
+ for(let i=ab.length-1;i>=0;i--){const b=ab[i];b.x-=c.bs;const h=P.find(p=>p.on&&ov(pr(p),{x:b.x,y:b.y-3,w:8,h:6}));
+  if(h)hurt(h);if(h||b.x<0)ab.splice(i,1)}
+
+ // Powerups
+ for(let i=items.length-1;i>=0;i--){const it=items[i];it.x-=2;it.t+=.1;
+  const pk=P.find(p=>p.on&&ov(pr(p),{x:it.x-14,y:it.y-14,w:28,h:28}));
+  if(pk){items.splice(i,1);snd(1200,.2,'triangle',.06);toast(T[it.k].n,true);
+   if(it.k==='S')pk.sh=true;else if(it.k==='R')rapid=420;
+   else{shake=15;snd(70,.6,'sawtooth',.09);if(boss)boss.hp=Math.max(0,boss.hp-12)}}
+  else if(it.x<-20)items.splice(i,1)}
+
+ // Final Boss Logic (Mothership Only)
+ if(boss){const b=boss;if(b.x>680)b.x-=2;b.t++;b.y=250+Math.sin(b.t*.025)*180;if(b.fl>0)b.fl--;
+  if(b.t%c.bf===0){
+    const tg=P.filter(p=>p.on);
+    if(tg.length){
+      const t=tg[Math.random()*tg.length|0],a=Math.atan2(t.y+14-(b.y+45),t.x+28-b.x),n=b.hp<b.m/2?5:3;
+      for(let k=-(n-1)/2;k<=(n-1)/2;k++)bb.push({x:b.x,y:b.y+45,vx:Math.cos(a+k*.2)*6,vy:Math.sin(a+k*.2)*6});
+      snd(260,.2,'sawtooth',.04);
+    }
+  }
+  P.forEach(p=>{if(p.on&&ov(pr(p),{x:b.x,y:b.y+12,w:156,h:66}))hurt(p)});
+  if(b.hp<=0){
+    boom(b.x+78,b.y+45,'#a800ff',90);boom(b.x+78,b.y+45,'#00ffaa',60);shake=25;snd(60,.9,'sawtooth',.1);
+    score+=2000;boss=null;bossDone=true;win();
+  }}
+
+ for(let i=bb.length-1;i>=0;i--){const s=bb[i];s.x+=s.vx;s.y+=s.vy;
+  const h=P.find(p=>p.on&&ov(pr(p),{x:s.x-5,y:s.y-5,w:10,h:10}));
+  if(h)hurt(h);if(h||s.x<-10||s.y<-10||s.y>H+10||s.x>W+20)bb.splice(i,1)}
+}
+
+function alienShip(px,py,f,sc=1){x.save();x.translate(px,py);x.scale(sc,sc);
+ let g=x.createRadialGradient(26,10,2,26,10,14);g.addColorStop(0,'#00ffaa');g.addColorStop(.8,'#a800ff');g.addColorStop(1,'#a800ff55');
+ x.fillStyle=g;x.shadowColor='#00ffaa';x.shadowBlur=12;x.beginPath();x.arc(26,12,13,Math.PI,6.28);x.fill();
+ g=x.createLinearGradient(0,10,52,24);g.addColorStop(0,'#1c0038');g.addColorStop(.5,'#4a0080');g.addColorStop(1,'#a800ff');
+ x.fillStyle=g;x.strokeStyle='#00ffaa';x.lineWidth=2;x.beginPath();x.ellipse(26,18,26,9,0,0,6.28);x.fill();x.stroke();x.restore()}
+
+function ship(p,px=p.x,py=p.y){x.save();x.translate(px,py);x.shadowColor=p.col;x.shadowBlur=10;
+ x.fillStyle=p.col;x.fillRect(-6,6,8,5);x.fillRect(-6,17,8,5);
+ x.fillStyle='#95a5a6';x.strokeStyle=p.col;x.lineWidth=1.5;x.beginPath();x.moveTo(15,0);x.lineTo(0,-6);x.lineTo(-4,10);x.lineTo(-4,18);x.lineTo(0,34);x.lineTo(15,28);x.closePath();x.fill();x.stroke();
+ const g=x.createLinearGradient(0,0,56,0);g.addColorStop(0,'#2c3e50');g.addColorStop(.5,'#bdc3c7');g.addColorStop(1,'#fff');
+ x.fillStyle=g;x.beginPath();x.moveTo(56,14);x.lineTo(25,3);x.lineTo(0,6);x.lineTo(0,22);x.lineTo(25,25);x.closePath();x.fill();x.stroke();x.restore();
+ if(p.sh){x.save();x.strokeStyle='#00f0ff';x.shadowColor='#00f0ff';x.shadowBlur=14;x.lineWidth=3;x.globalAlpha=.6+Math.sin(performance.now()/120)*.3;x.beginPath();x.arc(px+28,py+14,42,0,6.28);x.stroke();x.restore()}}
+
+function render(){
+ x.clearRect(0,0,W,H);x.save();if(shake>0)x.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ x.fillStyle='#fff';stars.forEach(s=>x.fillRect(s.x,s.y,s.s,s.s));
+ 
+ PL.forEach(p=>{x.save();x.fillStyle=p.c;x.shadowColor=p.c;x.shadowBlur=12;x.beginPath();x.arc(p.x,p.y,p.r,0,6.28);x.fill();x.restore()});
+
+ if(state!=='START'){
+  pt.forEach(f=>{x.save();x.globalAlpha=Math.max(0,f.l);x.fillStyle=f.c;x.beginPath();x.arc(f.x,f.y,f.r*f.l+1,0,6.28);x.fill();x.restore()});
+  P.forEach(p=>{if(p.on)ship(p)});
+  bul.forEach(b=>{x.fillStyle=b.c;x.fillRect(b.x,b.y-2,12,5)});
+  ab.forEach(b=>{x.fillStyle='#ff0055';x.fillRect(b.x,b.y-3,8,6)});
+  al.forEach(a=>alienShip(a.x,a.y,a.f));
+  x.fillStyle='#ff3df0';bb.forEach(s=>{x.beginPath();x.arc(s.x,s.y,6,0,6.28);x.fill()});
+  items.forEach(it=>{const y=it.y+Math.sin(it.t)*6;x.save();x.fillStyle=T[it.k].c;x.beginPath();x.arc(it.x,y,13,0,6.28);x.fill();x.fillStyle='#000';x.font='bold 14px sans-serif';x.textAlign='center';x.fillText(it.k,it.x,y+5);x.restore()});
+  
+  if(boss){x.save();alienShip(boss.x,boss.y,boss.t*.1,3);if(boss.fl>0){x.globalAlpha=.7;x.fillStyle='#fff';x.beginPath();x.ellipse(boss.x+78,boss.y+54,78,27,0,0,6.28);x.fill()}x.restore();
+   x.fillStyle='#0009';x.fillRect(250,64,400,12);x.fillStyle='#a800ff';x.fillRect(252,66,396*boss.hp/boss.m,8);x.fillStyle='#fff';x.font='bold 11px sans-serif';x.textAlign='center';x.fillText('MOTHERSHIP SHOWDOWN',450,90);x.textAlign='left'}
+ }
+ x.restore()}
+
+function loop(now){
+ if(state==='PLAY')update(now);
+ if(state==='PLAY'||state==='START'){PL.forEach(p=>{p.x-=p.s;if(p.x<-120)p.x=W+1800});stars.forEach(s=>{s.x-=s.z*(state==='PLAY'?1:.4);if(s.x<0)s.x=W})}
+ if(shake>0)shake=Math.max(0,shake-.8);
+ render();requestAnimationFrame(loop)}
+
+menu();requestAnimationFrame(loop);
+</script></body></html>
