@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NASA Space Quest - 3D Mothership & Enraged Abilities</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020208;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;user-select:none}
+#g{position:relative;width:900px;height:650px;border:3px solid #00f0ff;border-radius:16px;overflow:hidden;background:#000}
+canvas{display:block;pointer-events:none}
+.ov{position:absolute;inset:0;background:rgba(4,7,22,.92);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:25px;z-index:100;pointer-events:auto}
+.hid{display:none!important;pointer-events:none!important}
+h1{font-size:2.2rem;color:#00f0ff;margin-bottom:8px}
+p{color:#a0c0ff;margin-bottom:12px}
+.row{display:flex;gap:12px;margin-bottom:12px}
+.b{padding:10px 22px;font-weight:700;color:#fff;background:#10162f;border:2px solid #00f0ff;border-radius:20px;cursor:pointer;z-index:101}
+.b:hover,.b.on{background:#00f0ff;color:#000}
+.go{padding:14px 40px;font-size:1.2rem;font-weight:800;color:#000;background:#00ff66;border:none;border-radius:30px;cursor:pointer;z-index:101;margin-top:10px}
+.go:hover{transform:scale(1.05);background:#00f0ff}
+.arsenal{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:650px;width:100%;margin-bottom:12px}
+.w-card{background:#10162f;border:1px solid #00f0ff;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.w-card.bought{border-color:#00ff66;background:#082218}
+.buy-btn{padding:8px 16px;font-weight:bold;background:#00f0ff;color:#000;border:none;border-radius:6px;cursor:pointer}
+#wpn-hud{position:absolute;bottom:15px;left:15px;display:flex;gap:8px;z-index:50}
+.wpn-slot{background:#040716;border:2px solid #00f0ff;border-radius:8px;padding:6px 12px;color:#888;font-weight:bold;font-size:.8rem}
+.wpn-slot.active{border-color:#ffe600;color:#fff;background:#1a213d}
+#hud{position:absolute;top:10px;left:15px;right:15px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;color:#00f0ff;z-index:50;background:#000000a6;padding:8px 16px;border-radius:10px;border:1px solid #00f0ff}
+.bar{width:160px;height:14px;background:#111;border:1px solid #00f0ff;border-radius:8px;overflow:hidden;display:inline-block}
+#pr{height:100%;width:0;background:#ff0055}
+</style></head><body>
+
+<div id="g">
+  <div id="hud" class="hid">
+    <div id="sc">Score: 0</div>
+    <div>Moon Distance <div class="bar"><div id="pr"></div></div></div>
+  </div>
+
+  <div id="wpn-hud" class="hid">
+    <div class="wpn-slot active" id="ws-1">[1] BLASTER</div>
+    <div class="wpn-slot" id="ws-2">[2] LASER</div>
+    <div class="wpn-slot" id="ws-3">[3] PLASMA</div>
+  </div>
+
+  <canvas id="c" width="900" height="650"></canvas>
+
+  <div id="start" class="ov">
+    <h1>3D MOTHERSHIP SHOWDOWN</h1>
+    <p>Battle the evolving 3D Alien Mothership with enraged boss abilities!</p>
+    
+    <div class="arsenal">
+      <div class="w-card" id="wc-laser">
+        <div><b>Dual Laser</b></div>
+        <button class="buy-btn" id="btn-laser">EQUIP</button>
+      </div>
+      <div class="w-card" id="wc-plasma">
+        <div><b>Heavy Plasma</b></div>
+        <button class="buy-btn" id="btn-plasma">EQUIP</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="b mode on" id="m1">1 Player</button>
+      <button class="b mode" id="m2">2 Players</button>
+    </div>
+
+    <button id="go" class="go">Launch Mission 🚀</button>
+  </div>
+
+  <div id="win" class="ov hid">
+    <h1 style="color:#00ff66">3D MOTHERSHIP ANNIHILATED!</h1>
+    <button class="go" id="again-win">Play Again 🚀</button>
+  </div>
+
+  <div id="over" class="ov hid">
+    <h1 style="color:#ff0055">MISSION FAILED</h1>
+    <button class="go" id="again-over">Try Again 🚀</button>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), cv=$('c'), x=cv.getContext('2d'), W=900, H=650;
+let state='START', score=0, dist=0, p1={x:100,y:300,w:40,h:25}, bul=[], al=[], boss=null, bossBullets=[];
+let loadout={laser:false, plasma:false}, curWpn=1, K={};
+
+// Direct button handlers
+$('btn-laser').onclick = e => { e.stopPropagation(); loadout.laser = !loadout.laser; $('wc-laser').classList.toggle('bought'); };
+$('btn-plasma').onclick = e => { e.stopPropagation(); loadout.plasma = !loadout.plasma; $('wc-plasma').classList.toggle('bought'); };
+$('m1').onclick = e => { $('m1').classList.add('on'); $('m2').classList.remove('on'); };
+$('m2').onclick = e => { $('m2').classList.add('on'); $('m1').classList.remove('on'); };
+
+function startMission(){
+  $('start').classList.add('hid');
+  $('win').classList.add('hid');
+  $('over').classList.add('hid');
+  $('hud').classList.remove('hid');
+  $('wpn-hud').classList.remove('hid');
+  score=0; dist=0; bul=[]; al=[]; bossBullets=[]; boss=null; p1.y=300;
+  state='PLAY';
+}
+
+$('go').onclick = startMission;
+$('again-win').onclick = startMission;
+$('again-over').onclick = startMission;
+
+addEventListener('keydown', e => {
+  K[e.code] = true;
+  if(e.code==='Digit1') curWpn=1;
+  if(e.code==='Digit2' && loadout.laser) curWpn=2;
+  if(e.code==='Digit3' && loadout.plasma) curWpn=3;
+  updateHUD();
+});
+addEventListener('keyup', e => K[e.code] = false);
+
+function updateHUD(){
+  $('ws-1').className = 'wpn-slot ' + (curWpn===1?'active':'');
+  $('ws-2').className = 'wpn-slot ' + (curWpn===2?'active':'') + (loadout.laser?'':' hid');
+  $('ws-3').className = 'wpn-slot ' + (curWpn===3?'active':'') + (loadout.plasma?'':' hid');
+  $('sc').textContent = 'Score: ' + score;
+  $('pr').style.width = Math.min(100, dist/10) + '%';
+}
+
+// 3D Mothership Mesh Definition
+const ship3D = {
+  nodes: [
+    {x:-60, y:0, z:-30}, {x:60, y:0, z:-30}, {x:60, y:0, z:30}, {x:-60, y:0, z:30},
+    {x:-30, y:-40, z:0}, {x:30, y:-40, z:0}, {x:0, y:40, z:0}
+  ],
+  edges: [
+    [0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4],
+    [0,5],[1,5],[2,5],[3,5],[0,6],[1,6],[2,6],[3,6]
+  ]
+};
+
+let lastShot=0, lastBossAbility=0;
+
+function loop(){
+  x.clearRect(0,0,W,H);
+  
+  if(state==='PLAY'){
+    dist += 0.1;
+    if(K['KeyW'] && p1.y>0) p1.y-=6;
+    if(K['KeyS'] && p1.y<H-25) p1.y+=6;
+    if(K['KeyA'] && p1.x>0) p1.x-=6;
+    if(K['KeyD'] && p1.x<W-40) p1.x+=6;
+    
+    if(K['Space'] && Date.now()-lastShot > (curWpn===2?100:200)){
+      bul.push({x:p1.x+40, y:p1.y+10, w:curWpn===3?16:10, h:curWpn===3?10:4, dmg:curWpn===3?3:1, c:curWpn===3?'#00ffaa':curWpn===2?'#ffe600':'#00f0ff'});
+      lastShot = Date.now();
+    }
+
+    // Boss Spawn at 100% Distance (No standard aliens)
+    if(dist>=100 && !boss){
+      al=[];
+      boss={x:700, y:300, hp:120, maxHp:120, dir:1, rotX:0, rotY:0, shield:false, shieldTimer:0};
+    }
+
+    if(!boss && Math.random()<0.03) al.push({x:W, y:Math.random()*(H-30), w:30, h:30});
+
+    for(let i=al.length-1; i>=0; i--){
+      al[i].x -= 3;
+      if(al[i].x < -30) al.splice(i,1);
+    }
+
+    // 3D Boss Logic & Abilities
+    if(boss){
+      boss.y += boss.dir*2;
+      if(boss.y<100 || boss.y>H-150) boss.dir*=-1;
+      boss.rotY += 0.03; boss.rotX += 0.015;
+
+      if(boss.shieldTimer > 0) boss.shieldTimer--;
+      else boss.shield = false;
+
+      // Boss Abilities Triggering
+      if(Date.now() - lastBossAbility > 2000){
+        let ability = Math.floor(Math.random()*3);
+        if(ability === 0){ // Ability 1: Homing Missile
+          bossBullets.push({x:boss.x, y:boss.y, vx:-4, vy:0, homing:true, c:'#ff0055'});
+        } else if(ability === 1){ // Ability 2: Radial Nova Attack
+          for(let a=0; a<Math.PI*2; a+=Math.PI/4){
+            bossBullets.push({x:boss.x, y:boss.y, vx:Math.cos(a)*5, vy:Math.sin(a)*5, c:'#ffe600'});
+          }
+        } else if(ability === 2){ // Ability 3: Forcefield Shield
+          boss.shield = true;
+          boss.shieldTimer = 90;
+        }
+        lastBossAbility = Date.now();
+      }
+    }
+
+    // Update Boss Bullets
+    for(let i=bossBullets.length-1; i>=0; i--){
+      let b = bossBullets[i];
+      if(b.homing){
+        b.vy += (p1.y - b.y) * 0.02;
+        b.x += b.vx; b.y += b.vy;
+      } else {
+        b.x += b.vx; b.y += b.vy;
+      }
+      
+      // Collision with player
+      if(b.x < p1.x+p1.w && b.x+8 > p1.x && b.y < p1.y+p1.h && b.y+8 > p1.y){
+        state='OVER'; $('hud').classList.add('hid'); $('wpn-hud').classList.add('hid'); $('over').classList.remove('hid');
+      }
+      if(b.x<0 || b.x>W || b.y<0 || b.y>H) bossBullets.splice(i,1);
+    }
+
+    // Player Bullets Collisions
+    for(let i=bul.length-1; i>=0; i--){
+      let b = bul[i]; b.x += 10;
+      for(let j=al.length-1; j>=0; j--){
+        if(b.x < al[j].x+30 && b.x+b.w > al[j].x && b.y < al[j].y+30 && b.y+b.h > al[j].y){
+          al.splice(j,1); bul.splice(i,1); score+=100; break;
+        }
+      }
+      if(boss && b.x < boss.x+60 && b.x+b.w > boss.x-60 && b.y < boss.y+60 && b.y+b.h > boss.y-60){
+        if(!boss.shield) boss.hp -= b.dmg;
+        bul.splice(i,1);
+        if(boss.hp<=0){ state='WIN'; $('hud').classList.add('hid'); $('wpn-hud').classList.add('hid'); $('win').classList.remove('hid'); }
+      }
+    }
+
+    updateHUD();
+  }
+
+  // Draw Player Ship
+  x.fillStyle='#00f0ff'; x.fillRect(p1.x, p1.y, p1.w, p1.h);
+  
+  // Draw Player Bullets
+  bul.forEach(b=>{ x.fillStyle=b.c; x.fillRect(b.x, b.y, b.w, b.h); });
+
+  // Draw Aliens
+  x.fillStyle='#ff0055'; al.forEach(a=>x.fillRect(a.x, a.y, a.w, a.h));
+
+  // Draw Boss Bullets
+  bossBullets.forEach(b=>{ x.fillStyle=b.c; x.beginPath(); x.arc(b.x,b.y,6,0,6.28); x.fill(); });
+
+  // Render 3D Wireframe Mothership
+  if(boss){
+    x.save();
+    x.translate(boss.x, boss.y);
+    let projNodes = ship3D.nodes.map(n => {
+      // 3D Y-Axis Rotation
+      let x1 = n.x * Math.cos(boss.rotY) - n.z * Math.sin(boss.rotY);
+      let z1 = n.z * Math.cos(boss.rotY) + n.x * Math.sin(boss.rotY);
+      // 3D X-Axis Rotation
+      let y1 = n.y * Math.cos(boss.rotX) - z1 * Math.sin(boss.rotX);
+      let z2 = z1 * Math.cos(boss.rotX) + n.y * Math.sin(boss.rotX);
+      // Perspective projection
+      let scale = 300 / (300 + z2);
+      return {x: x1 * scale, y: y1 * scale};
+    });
+
+    x.strokeStyle = boss.shield ? '#00ffff' : '#a800ff';
+    x.lineWidth = 2;
+    ship3D.edges.forEach(e => {
+      x.beginPath();
+      x.moveTo(projNodes[e[0]].x, projNodes[e[0]].y);
+      x.lineTo(projNodes[e[1]].x, projNodes[e[1]].y);
+      x.stroke();
+    });
+
+    if(boss.shield){
+      x.strokeStyle='#00ffff'; x.lineWidth=3;
+      x.beginPath(); x.arc(0,0,75,0,6.28); x.stroke();
+    }
+    x.restore();
+
+    // Health Bar
+    x.fillStyle='#000'; x.fillRect(boss.x-50, boss.y-70, 100, 8);
+    x.fillStyle='#00ff66'; x.fillRect(boss.x-50, boss.y-70, 100*(boss.hp/boss.maxHp), 8);
+  }
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script></body></html>
